@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공공기물 파손 신고 관리 대시보드</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .reports-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .reports-table th,
+        .reports-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .reports-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .reports-table td {
+            font-size: 14px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-received { background: #d4edda; color: #155724; }
+        .status-reviewing { background: #fff3cd; color: #856404; }
+        .status-processing { background: #d1ecf1; color: #0c5460; }
+        .status-completed { background: #e2e3e5; color: #383d41; }
+
+        .urgency-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .urgency-1 { background: #e9ecef; color: #6c757d; }
+        .urgency-2 { background: #d4edda; color: #155724; }
+        .urgency-3 { background: #fff3cd; color: #856404; }
+        .urgency-4 { background: #f8d7da; color: #721c24; }
+        .urgency-5 { background: #d1ecf1; color: #0c5460; }
+
+        .chart-container {
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .cluster-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .cluster-info h4 {
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+
+        .cluster-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .emergency-alert {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ 공공기물 파손 신고 관리 대시보드</h1>
+        <p>실시간 신고 현황 및 처리 상태 모니터링</p>
+    </div>
+
+    <div class="container">
+        <button class="refresh-btn" onclick="refreshDashboard()">🔄 새로고침</button>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <h3 id="totalReports">-</h3>
+                <p>전체 신고</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="recentReports">-</h3>
+                <p>최근 24시간</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="emergencyReports">-</h3>
+                <p>긴급 신고</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="clusterReports">-</h3>
+                <p>군집 신고</p>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">📋 최근 신고 현황</div>
+                <div class="card-body">
+                    <div id="reportsTable">
+                        <div class="loading">데이터를 불러오는 중...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">📊 신고 통계</div>
+                <div class="card-body">
+                    <div id="statisticsChart">
+                        <div class="loading">통계를 불러오는 중...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-header">🔍 군집 신고 현황</div>
+            <div class="card-body">
+                <div id="clusterInfo">
+                    <div class="loading">군집 정보를 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class Dashboard {
+            constructor() {
+                this.refreshInterval = null;
+                this.init();
+            }
+
+            init() {
+                this.loadDashboard();
+                // 30초마다 자동 새로고침
+                this.refreshInterval = setInterval(() => {
+                    this.loadDashboard();
+                }, 30000);
+            }
+
+            async loadDashboard() {
+                try {
+                    await Promise.all([
+                        this.loadStatistics(),
+                        this.loadRecentReports(),
+                        this.loadClusterInfo()
+                    ]);
+                } catch (error) {
+                    console.error('대시보드 로드 오류:', error);
+                }
+            }
+
+            async loadStatistics() {
+                try {
+                    const response = await fetch('/api/statistics');
+                    const stats = await response.json();
+                    
+                    document.getElementById('totalReports').textContent = stats.total_reports;
+                    document.getElementById('recentReports').textContent = stats.recent_24h;
+                    
+                    // 긴급 신고 수 계산 (긴급도 4, 5)
+                    const emergencyCount = (stats.urgency_distribution[4] || 0) + (stats.urgency_distribution[5] || 0);
+                    document.getElementById('emergencyReports').textContent = emergencyCount;
+                    
+                    // 통계 차트 생성
+                    this.createStatisticsChart(stats);
+                } catch (error) {
+                    console.error('통계 로드 오류:', error);
+                }
+            }
+
+            async loadRecentReports() {
+                try {
+                    const response = await fetch('/api/reports');
+                    const reports = await response.json();
+                    
+                    this.createReportsTable(reports);
+                } catch (error) {
+                    console.error('신고 목록 로드 오류:', error);
+                }
+            }
+
+            async loadClusterInfo() {
+                try {
+                    const response = await fetch('/api/clusters');
+                    const clusterData = await response.json();
+                    
+                    document.getElementById('clusterReports').textContent = clusterData.cluster_count || 0;
+                    this.createClusterInfo(clusterData.clusters);
+                } catch (error) {
+                    console.error('군집 정보 로드 오류:', error);
+                }
+            }
+
+            createStatisticsChart(stats) {
+                const chartContainer = document.getElementById('statisticsChart');
+                
+                let chartHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+                
+                // 긴급도별 분포
+                chartHtml += '<div>';
+                chartHtml += '<h4 style="margin-bottom: 15px; color: #667eea;">긴급도별 분포</h4>';
+                const urgencyLabels = ['낮음', '보통', '높음', '매우높음', '긴급'];
+                for (let i = 1; i <= 5; i++) {
+                    const count = stats.urgency_distribution[i] || 0;
+                    const percentage = stats.total_reports > 0 ? (count / stats.total_reports * 100).toFixed(1) : 0;
+                    chartHtml += `<div style="margin: 8px 0; display: flex; justify-content: space-between;">`;
+                    chartHtml += `<span>${urgencyLabels[i-1]}</span>`;
+                    chartHtml += `<span><span class="urgency-badge urgency-${i}">${count}</span> (${percentage}%)</span>`;
+                    chartHtml += `</div>`;
+                }
+                chartHtml += '</div>';
+                
+                // 손상 유형별 분포
+                chartHtml += '<div>';
+                chartHtml += '<h4 style="margin-bottom: 15px; color: #667eea;">손상 유형별 분포</h4>';
+                for (const [damageType, count] of Object.entries(stats.damage_type_distribution)) {
+                    const percentage = stats.total_reports > 0 ? (count / stats.total_reports * 100).toFixed(1) : 0;
+                    chartHtml += `<div style="margin: 8px 0; display: flex; justify-content: space-between;">`;
+                    chartHtml += `<span>${damageType}</span>`;
+                    chartHtml += `<span>${count} (${percentage}%)</span>`;
+                    chartHtml += `</div>`;
+                }
+                chartHtml += '</div>';
+                
+                chartHtml += '</div>';
+                chartContainer.innerHTML = chartHtml;
+            }
+
+            createReportsTable(reports) {
+                const tableContainer = document.getElementById('reportsTable');
+                
+                if (!reports || reports.length === 0) {
+                    tableContainer.innerHTML = '<div class="loading">신고가 없습니다.</div>';
+                    return;
+                }
+                
+                let tableHtml = '<table class="reports-table">';
+                tableHtml += '<thead><tr>';
+                tableHtml += '<th>신고번호</th><th>손상유형</th><th>긴급도</th><th>상태</th><th>신고시간</th>';
+                tableHtml += '</tr></thead><tbody>';
+                
+                reports.slice(0, 10).forEach(report => {
+                    const urgencyText = ['낮음', '보통', '높음', '매우높음', '긴급'][report.urgency_level - 1];
+                    const statusText = {
+                        '접수': '접수완료',
+                        '검토중': '검토중',
+                        '처리중': '처리중',
+                        '완료': '처리완료'
+                    }[report.status] || report.status;
+                    
+                    tableHtml += '<tr>';
+                    tableHtml += `<td>#${report.id}</td>`;
+                    tableHtml += `<td>${report.damage_type}</td>`;
+                    tableHtml += `<td><span class="urgency-badge urgency-${report.urgency_level}">${urgencyText}</span></td>`;
+                    tableHtml += `<td><span class="status-badge status-${report.status.toLowerCase()}">${statusText}</span></td>`;
+                    tableHtml += `<td>${new Date(report.created_at).toLocaleString()}</td>`;
+                    tableHtml += '</tr>';
+                });
+                
+                tableHtml += '</tbody></table>';
+                tableContainer.innerHTML = tableHtml;
+            }
+
+            createClusterInfo(clusters) {
+                const clusterContainer = document.getElementById('clusterInfo');
+                
+                if (!clusters || clusters.length === 0) {
+                    clusterContainer.innerHTML = '<div class="loading">군집 신고가 없습니다.</div>';
+                    return;
+                }
+                
+                let clusterHtml = '';
+                clusters.forEach(cluster => {
+                    clusterHtml += '<div class="cluster-info">';
+                    clusterHtml += `<h4>군집 ${cluster.cluster_id} (${cluster.report_count}건)</h4>`;
+                    clusterHtml += `<p><strong>위치:</strong> 위도 ${cluster.center_latitude.toFixed(6)}, 경도 ${cluster.center_longitude.toFixed(6)}</p>`;
+                    clusterHtml += `<p><strong>최고 긴급도:</strong> <span class="urgency-badge urgency-${cluster.max_urgency}">${['낮음', '보통', '높음', '매우높음', '긴급'][cluster.max_urgency - 1]}</span></p>`;
+                    
+                    if (cluster.max_urgency >= 4) {
+                        clusterHtml += '<div class="emergency-alert">⚠️ 긴급 처리가 필요한 군집입니다!</div>';
+                    }
+                    
+                    clusterHtml += '</div>';
+                });
+                
+                clusterContainer.innerHTML = clusterHtml;
+            }
+        }
+
+        function refreshDashboard() {
+            if (window.dashboard) {
+                window.dashboard.loadDashboard();
+            }
+        }
+
+        // 대시보드 초기화
+        window.dashboard = new Dashboard();
+    </script>
+</body>
+</html>

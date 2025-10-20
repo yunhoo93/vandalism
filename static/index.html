@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공공기물 파손 신고 챗봇</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 400px;
+            height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .chat-header p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.user .message-content {
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin: 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .message.user .message-avatar {
+            background: #667eea;
+            color: white;
+            order: 2;
+        }
+
+        .message.bot .message-avatar {
+            background: #28a745;
+            color: white;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+
+        .file-input {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input:hover {
+            background: #5a6fd8;
+            transform: scale(1.05);
+        }
+
+        .file-input input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input::before {
+            content: "📷";
+            font-size: 16px;
+        }
+
+        .text-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .text-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .send-button:hover {
+            background: #5a6fd8;
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .damage-type-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .damage-type-btn {
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .damage-type-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .damage-type-btn.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-received { background: #28a745; }
+        .status-reviewing { background: #ffc107; }
+        .status-processing { background: #17a2b8; }
+        .status-completed { background: #6c757d; }
+
+        .image-preview {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .urgency-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .urgency-1 { background: #e9ecef; color: #6c757d; }
+        .urgency-2 { background: #d4edda; color: #155724; }
+        .urgency-3 { background: #fff3cd; color: #856404; }
+        .urgency-4 { background: #f8d7da; color: #721c24; }
+        .urgency-5 { background: #d1ecf1; color: #0c5460; }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🏛️ 공공기물 파손 신고</h1>
+            <p>사진을 찍어서 쉽게 신고하세요!</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    안녕하세요! 공공기물 파손 신고 챗봇입니다. 📸<br><br>
+                    파손된 시설물의 사진을 찍어서 보내주시면, AI가 자동으로 분석하여 적절한 부서에 연계해드립니다.
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <div class="file-input">
+                <input type="file" id="imageInput" accept="image/*" />
+            </div>
+            <input type="text" class="text-input" id="textInput" placeholder="메시지를 입력하세요..." />
+            <button class="send-button" id="sendButton">➤</button>
+        </div>
+    </div>
+
+    <script>
+        class ChatBot {
+            constructor() {
+                this.messages = document.getElementById('chatMessages');
+                this.textInput = document.getElementById('textInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.imageInput = document.getElementById('imageInput');
+                this.currentReportId = null;
+                this.damageTypes = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.sendButton.addEventListener('click', () => this.sendMessage());
+                this.textInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
+                this.imageInput.addEventListener('change', (e) => this.handleImageUpload(e));
+                
+                this.loadDamageTypes();
+            }
+
+            async loadDamageTypes() {
+                try {
+                    const response = await fetch('/api/damage-types');
+                    const data = await response.json();
+                    this.damageTypes = data.damage_types;
+                } catch (error) {
+                    console.error('손상 유형 로드 실패:', error);
+                }
+            }
+
+            addMessage(content, isUser = false, isImage = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = isUser ? '👤' : '🤖';
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                
+                if (isImage) {
+                    const img = document.createElement('img');
+                    img.src = content;
+                    img.className = 'image-preview';
+                    messageContent.appendChild(img);
+                } else {
+                    messageContent.innerHTML = content;
+                }
+                
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+                this.messages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            async handleImageUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // 이미지 미리보기
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.addMessage(e.target.result, true, true);
+                };
+                reader.readAsDataURL(file);
+
+                // 로딩 메시지
+                this.addMessage('<div class="loading"></div> 이미지를 분석하고 있습니다...', false);
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.handleImageAnalysis(result);
+                    } else {
+                        this.addMessage('❌ 이미지 분석에 실패했습니다. 다시 시도해주세요.');
+                    }
+                } catch (error) {
+                    console.error('이미지 업로드 오류:', error);
+                    this.addMessage('❌ 이미지 업로드 중 오류가 발생했습니다.');
+                }
+
+                // 파일 입력 초기화
+                event.target.value = '';
+            }
+
+            handleImageAnalysis(result) {
+                const analysis = result.analysis;
+                const location = result.location;
+                
+                let message = `📸 이미지 분석 완료!<br><br>`;
+                
+                if (analysis.error) {
+                    message += `❌ ${analysis.error}`;
+                } else {
+                    message += `🔍 <strong>탐지된 손상 유형:</strong> ${analysis.damage_type}<br>`;
+                    message += `📊 <strong>신뢰도:</strong> ${(analysis.confidence * 100).toFixed(1)}%<br>`;
+                    message += `📍 <strong>위치:</strong> ${location.location}<br><br>`;
+                    
+                    if (analysis.detected_objects && analysis.detected_objects.length > 0) {
+                        message += `👁️ <strong>탐지된 객체:</strong><br>`;
+                        analysis.detected_objects.forEach(obj => {
+                            message += `• ${obj.label} (${(obj.score * 100).toFixed(1)}%)<br>`;
+                        });
+                    }
+                    
+                    message += `<br>이 손상 유형이 맞나요? 아니면 다른 유형을 선택해주세요:`;
+                    
+                    // 손상 유형 선택 버튼 추가
+                    const damageTypeButtons = this.createDamageTypeButtons(analysis.damage_type);
+                    message += damageTypeButtons;
+                }
+                
+                this.addMessage(message);
+            }
+
+            createDamageTypeButtons(selectedType) {
+                let buttons = '<div class="damage-type-buttons">';
+                
+                this.damageTypes.forEach(type => {
+                    const isSelected = type.id === selectedType ? 'selected' : '';
+                    buttons += `<button class="damage-type-btn ${isSelected}" onclick="chatBot.selectDamageType('${type.id}')">${type.name}</button>`;
+                });
+                
+                buttons += '</div>';
+                buttons += '<br><button class="damage-type-btn" onclick="chatBot.confirmReport()" style="background: #28a745; color: white;">✅ 신고 접수하기</button>';
+                
+                return buttons;
+            }
+
+            selectDamageType(damageType) {
+                // 선택된 손상 유형 저장
+                this.selectedDamageType = damageType;
+                
+                // 버튼 상태 업데이트
+                document.querySelectorAll('.damage-type-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                event.target.classList.add('selected');
+            }
+
+            async confirmReport() {
+                if (!this.selectedDamageType) {
+                    this.addMessage('❌ 손상 유형을 선택해주세요.');
+                    return;
+                }
+
+                this.addMessage('<div class="loading"></div> 신고를 접수하고 있습니다...', false);
+
+                try {
+                    const response = await fetch('/api/report', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            user_id: 'user_' + Date.now(),
+                            damage_type: this.selectedDamageType,
+                            description: '이미지 기반 자동 신고'
+                        })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.report_id) {
+                        this.currentReportId = result.report_id;
+                        
+                        const urgencyClass = `urgency-${result.urgency_level}`;
+                        const urgencyText = ['낮음', '보통', '높음', '매우높음', '긴급'][result.urgency_level - 1];
+                        
+                        let message = `✅ <strong>신고 접수 완료!</strong><br><br>`;
+                        message += `📋 <strong>신고번호:</strong> #${result.report_id}<br>`;
+                        message += `🏢 <strong>담당부서:</strong> ${result.department}<br>`;
+                        message += `⏰ <strong>처리예상시간:</strong> ${result.estimated_time}<br>`;
+                        message += `🚨 <strong>긴급도:</strong> <span class="urgency-badge ${urgencyClass}">${urgencyText}</span><br><br>`;
+                        message += `처리 상황을 실시간으로 확인할 수 있습니다.`;
+                        
+                        this.addMessage(message);
+                        
+                        // 주기적으로 상태 확인
+                        this.startStatusPolling();
+                    } else {
+                        this.addMessage('❌ 신고 접수에 실패했습니다. 다시 시도해주세요.');
+                    }
+                } catch (error) {
+                    console.error('신고 접수 오류:', error);
+                    this.addMessage('❌ 신고 접수 중 오류가 발생했습니다.');
+                }
+            }
+
+            startStatusPolling() {
+                if (!this.currentReportId) return;
+                
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch(`/api/report/${this.currentReportId}`);
+                        const status = await response.json();
+                        
+                        // 상태 업데이트 메시지 표시
+                        const statusClass = `status-${status.status.toLowerCase()}`;
+                        const statusText = {
+                            '접수': '접수완료',
+                            '검토중': '검토중',
+                            '처리중': '처리중',
+                            '완료': '처리완료'
+                        }[status.status] || status.status;
+                        
+                        let message = `📊 <strong>처리 현황 업데이트</strong><br><br>`;
+                        message += `<span class="status-indicator ${statusClass}"></span> <strong>상태:</strong> ${statusText}<br>`;
+                        message += `🏢 <strong>담당부서:</strong> ${status.department}<br>`;
+                        message += `📝 <strong>진행상황:</strong> ${status.progress}<br>`;
+                        message += `🕒 <strong>업데이트:</strong> ${new Date(status.updated_at).toLocaleString()}`;
+                        
+                        this.addMessage(message);
+                        
+                        if (status.status === '완료') {
+                            clearInterval(pollInterval);
+                        }
+                    } catch (error) {
+                        console.error('상태 확인 오류:', error);
+                    }
+                }, 30000); // 30초마다 확인
+            }
+
+            async sendMessage() {
+                const message = this.textInput.value.trim();
+                if (!message) return;
+
+                this.addMessage(message, true);
+                this.textInput.value = '';
+
+                // 간단한 응답 로직
+                if (message.includes('안녕') || message.includes('hello')) {
+                    this.addMessage('안녕하세요! 공공기물 파손 신고를 도와드리겠습니다. 📸');
+                } else if (message.includes('도움') || message.includes('help')) {
+                    this.addMessage('사진을 찍어서 보내주시면 AI가 자동으로 분석하여 신고해드립니다!');
+                } else {
+                    this.addMessage('사진을 업로드해주시면 더 정확한 도움을 드릴 수 있습니다. 📷');
+                }
+            }
+
+            scrollToBottom() {
+                this.messages.scrollTop = this.messages.scrollHeight;
+            }
+        }
+
+        // 챗봇 초기화
+        const chatBot = new ChatBot();
+    </script>
+</body>
+</html>
