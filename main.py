@@ -141,19 +141,16 @@ def translate_object_label(english_label: str) -> str:
         'motorcycle': '오토바이',
         'bicycle': '자전거',
         'vehicle': '차량',
-        'illegal_parking': '차량',
         
         # 가로등 관련
         'traffic light': '신호등',
         'pole': '전봇대',
         'lamp': '가로등',
         'street light': '가로등',
-        'street_light': '가로등',
         'streetlight': '가로등',
         
         # 도로 관련
         'road': '도로',
-        'road_damage': '도로',
         'street': '도로',
         'highway': '고속도로',
         'pavement': '포장도로',
@@ -162,7 +159,6 @@ def translate_object_label(english_label: str) -> str:
         
         # 안전 시설
         'fence': '펜스',
-        'safety_fence': '펜스',
         'barrier': '방호벽',
         'guardrail': '가드레일',
         'railing': '난간',
@@ -188,7 +184,13 @@ def translate_object_label(english_label: str) -> str:
         'mouse': '마우스',
         'tv': 'TV',
         'remote': '리모컨',
-        'scissors': '가위'
+        'scissors': '가위',
+
+        # YOLO Object
+        'illegal_parking': '불법주정차',
+        'street_light': '가로등',
+        'road_damage': '도로파손',
+        'safety_fence': '안전펜스',
     }
     
     return translation_map.get(english_label.lower(), english_label)
@@ -340,22 +342,37 @@ def analyze_image(image_bytes: bytes) -> dict:
         results = object_detector(image)
         MAX_OBJECTS = 5
 
-        detected_objects = []
-        for i, result in enumerate(results[:MAX_OBJECTS]):
-            detected_objects.append({
-                'label': translate_object_label(result['label']),  # UI용 한글
-                'score': result['score'],
-                'box': result['box'],
-                'original_label': result['label'].strip().lower()  # 소문자 통일, 공백 제거
-            })
+    for i, result in enumerate(results[:MAX_OBJECTS]):
+        # transformers pipeline 포맷
+        if isinstance(result, dict) and 'label' in result:
+            label_raw = result['label']
+            score = float(result.get('score', 0))
+            box = result.get('box', None)
+        # ultralytics YOLOv8 포맷
+        elif hasattr(result, "boxes"):
+            box_obj = result.boxes[i]
+            label_raw = getattr(box_obj, "cls", i)
+            score = getattr(box_obj, "conf", 0)
+            box = getattr(box_obj, "xyxy", None)
+        else:
+            continue
+    
+        # 라벨 표준화
+        original_label = str(label_raw).strip().lower().replace(" ", "_")
+        detected_objects.append({
+            "label": translate_object_label(original_label),
+            "score": score,
+            "box": box,
+            "original_label": original_label
+        })
 
         # YOLO 학습 라벨 기준 공공기물 리스트
         public_objects = [
-            'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'person',
-            'traffic light', 'stop sign', 'fire hydrant', 'bench',
-            'pole', 'lamp', 'street_light', 'road', 'street', 'highway',
-            'fence', 'barrier', 'guardrail', 'railing', 'sign', 'building',
-            'illegal_parking', 'road_damage', 'safety_fence'
+            'car','truck','bus','motorcycle','bicycle','person',
+            'traffic_light','stop_sign','fire_hydrant','bench',
+            'pole','lamp','street_light','road','street','highway',
+            'fence','barrier','guardrail','railing','sign','building',
+            'illegal_parking','road_damage','safety_fence'
         ]
 
         object_to_damage = {
@@ -366,9 +383,9 @@ def analyze_image(image_bytes: bytes) -> dict:
             'bicycle': '불법주정차',
             'illegal_parking': '불법주정차',
             'person': '기타',
-            'traffic light': '가로등',
-            'stop sign': '기타',
-            'fire hydrant': '기타',
+            'traffic_light': '가로등',
+            'stop_sign': '기타',
+            'fire_hydrant': '기타',
             'bench': '기타',
             'pole': '가로등',
             'lamp': '가로등',
