@@ -207,7 +207,7 @@ def analyze_image(image_bytes: bytes) -> dict:
             image = Image.open(BytesIO(image_bytes))
             return {
                 "damage_type": "기타",
-                "confidence": 0.1,
+                "confidence": 0.5,
                 "detected_objects": [],
                 "analysis": "이미지가 성공적으로 업로드되었습니다. 손상 유형을 선택해주세요.",
                 "ai_enabled": False
@@ -226,37 +226,24 @@ def analyze_image(image_bytes: bytes) -> dict:
         # 테스트용: 1개, 3개, 5개 등으로 변경해서 테스트 가능
         MAX_OBJECTS = 5
         
-        # 설정된 개수만큼 객체 표시 - 한글 번역 적용
-        # detected_objects = []
-        # for i, result in enumerate(results[:MAX_OBJECTS]):
-        #     detected_objects.append({
-        #         'label': translate_object_label(result['label']),  # 한글 번역
-        #         'score': result['score'],
-        #         'box': result['box'],
-        #         'original_label': result['label']  # 원본 영어 라벨 보존
-        #     })
-
+        설정된 개수만큼 객체 표시 - 한글 번역 적용
         detected_objects = []
-        yolo_result = results[0]
-        
-        for box in yolo_result.boxes[:MAX_OBJECTS]:
-            cls = int(box.cls[0])
-            score = float(box.conf[0])
-            label = object_detector.names[cls]
-        
+        for i, result in enumerate(results[:MAX_OBJECTS]):
             detected_objects.append({
-                "label": translate_object_label(label),
-                "score": score,
-                "box": box.xyxy.tolist(),
-                "original_label": label
+                'label': translate_object_label(result['label']),  # 한글 번역
+                'score': result['score'],
+                'box': result['box'],
+                'original_label': result['label']  # 원본 영어 라벨 보존
             })
+
         
         # 공공기물 관련 객체 필터링 및 손상 유형 추정
         public_objects = [
             'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'person', 
             'traffic light', 'stop sign', 'fire hydrant', 'bench',
             'pole', 'lamp', 'street light', 'road', 'street', 'highway',
-            'fence', 'barrier', 'guardrail', 'railing', 'sign', 'building'
+            'fence', 'barrier', 'guardrail', 'railing', 'sign', 'building',
+            'street_light', 'illegal_parking', 'road_damage', 'road_damage', 'safety_fence'
         ]
         
         # 객체에 따른 손상 유형 매핑
@@ -281,6 +268,7 @@ def analyze_image(image_bytes: bytes) -> dict:
             'highway': '도로',
             'road': '도로',
             'damage_road': '도로',
+            'road_damage': '도로',
             'fence': '안전펜스',
             'safety_fence': '안전펜스',
             'barrier': '안전펜스',
