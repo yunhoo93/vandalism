@@ -141,16 +141,19 @@ def translate_object_label(english_label: str) -> str:
         'motorcycle': '오토바이',
         'bicycle': '자전거',
         'vehicle': '차량',
+        'illegal_parking': '차량',
         
         # 가로등 관련
         'traffic light': '신호등',
         'pole': '전봇대',
         'lamp': '가로등',
         'street light': '가로등',
+        'street_light': '가로등',
         'streetlight': '가로등',
         
         # 도로 관련
         'road': '도로',
+        'road_damage': '도로',
         'street': '도로',
         'highway': '고속도로',
         'pavement': '포장도로',
@@ -159,6 +162,7 @@ def translate_object_label(english_label: str) -> str:
         
         # 안전 시설
         'fence': '펜스',
+        'safety_fence': '펜스',
         'barrier': '방호벽',
         'guardrail': '가드레일',
         'railing': '난간',
@@ -223,13 +227,28 @@ def analyze_image(image_bytes: bytes) -> dict:
         MAX_OBJECTS = 5
         
         # 설정된 개수만큼 객체 표시 - 한글 번역 적용
+        # detected_objects = []
+        # for i, result in enumerate(results[:MAX_OBJECTS]):
+        #     detected_objects.append({
+        #         'label': translate_object_label(result['label']),  # 한글 번역
+        #         'score': result['score'],
+        #         'box': result['box'],
+        #         'original_label': result['label']  # 원본 영어 라벨 보존
+        #     })
+
         detected_objects = []
-        for i, result in enumerate(results[:MAX_OBJECTS]):
+        yolo_result = results[0]
+        
+        for box in yolo_result.boxes[:MAX_OBJECTS]:
+            cls = int(box.cls[0])
+            score = float(box.conf[0])
+            label = object_detector.names[cls]
+        
             detected_objects.append({
-                'label': translate_object_label(result['label']),  # 한글 번역
-                'score': result['score'],
-                'box': result['box'],
-                'original_label': result['label']  # 원본 영어 라벨 보존
+                "label": translate_object_label(label),
+                "score": score,
+                "box": box.xyxy.tolist(),
+                "original_label": label
             })
         
         # 공공기물 관련 객체 필터링 및 손상 유형 추정
