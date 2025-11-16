@@ -207,7 +207,7 @@ def analyze_image(image_bytes: bytes) -> dict:
             image = Image.open(BytesIO(image_bytes))
             return {
                 "damage_type": "기타",
-                "confidence": 0.5,
+                "confidence": 0.1,
                 "detected_objects": [],
                 "analysis": "이미지가 성공적으로 업로드되었습니다. 손상 유형을 선택해주세요.",
                 "ai_enabled": False
