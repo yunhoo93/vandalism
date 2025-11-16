@@ -228,13 +228,68 @@ def analyze_image(image_bytes: bytes) -> dict:
         
         설정된 개수만큼 객체 표시 - 한글 번역 적용
         detected_objects = []
-        for i, result in enumerate(results[:MAX_OBJECTS]):
-            detected_objects.append({
-                'label': translate_object_label(result['label']),  # 한글 번역
-                'score': result['score'],
-                'box': result['box'],
-                'original_label': result['label']  # 원본 영어 라벨 보존
-            })
+        
+        # for i, result in enumerate(results[:MAX_OBJECTS]):
+        #     detected_objects.append({
+        #         'label': translate_object_label(result['label']),  # 한글 번역
+        #         'score': result['score'],
+        #         'box': result['box'],
+        #         'original_label': result['label']  # 원본 영어 라벨 보존
+        #     })
+        
+        try:
+            # 1) ultralytics YOLO 형식 (results[0].boxes exists) 처리
+            if hasattr(results, "__len__") and len(results) > 0 and hasattr(results[0], "boxes"):
+                y_res = results[0]
+                # ultralytics box 객체 처리
+                # box.cls (tensor), box.conf, box.xyxy
+                for box in list(y_res.boxes)[:MAX_OBJECTS]:
+                    try:
+                        cls_idx = int(box.cls.cpu().numpy()[0]) if hasattr(box.cls, "cpu") else int(box.cls[0])
+                    except Exception:
+                        # fallback: try as plain python number
+                        cls_idx = int(box.cls[0]) if isinstance(box.cls, (list, tuple)) else int(box.cls)
+                    try:
+                        score = float(box.conf.cpu().numpy()[0]) if hasattr(box.conf, "cpu") else float(box.conf[0])
+                    except Exception:
+                        score = float(box.conf[0]) if isinstance(box.conf, (list, tuple)) else float(box.conf)
+                    # 모델에 따라 names 위치가 다름
+                    model_names = getattr(object_detector, "names", None)
+                    if not model_names and hasattr(results[0], "names"):
+                        model_names = results[0].names
+                    label = model_names[cls_idx] if model_names and cls_idx in model_names else str(cls_idx)
+
+                    detected_objects.append({
+                        "label": translate_object_label(label),
+                        "score": score,
+                        "box": getattr(box, "xyxy", None).tolist() if hasattr(box, "xyxy") else getattr(box, "data", None),
+                        "original_label": label
+                    })
+
+            # 2) transformers pipeline("object-detection") 형식: list of dicts
+            elif isinstance(results, list) and results and isinstance(results[0], dict) and 'label' in results[0]:
+                # results is a list of detections (for single image)
+                for det in results[:MAX_OBJECTS]:
+                    # det typically: {"label":"LABEL","score":0.9,"box":{...}}
+                    label = det.get('label', '')
+                    score = det.get('score', det.get('confidence', 0.0))
+                    box = det.get('box', det.get('bbox', None))
+                    detected_objects.append({
+                        "label": translate_object_label(label),
+                        "score": float(score),
+                        "box": box,
+                        "original_label": label
+                    })
+            else:
+                # 알 수 없는 형식: 전체 results 내용 로깅 후 fallback
+                logger.warning(f"Unknown object_detector results format: {type(results)} / sample: {str(results)[:400]}")
+        except Exception as parse_err:
+            logger.error(f"Object detection parsing error: {parse_err}")
+            # fallback: 빈 리스트로 처리 (이미지 업로드는 실패하지 않게)
+            detected_objects = []
+
+        # 디버그 로그: 탐지된 원본 라벨과 신뢰도 확인 (로컬/서버 로그로 확인)
+        logger.info("detected_objects: " + json.dumps([{"orig": obj["original_label"], "score": obj["score"]} for obj in detected_objects], ensure_ascii=False))
 
         
         # 공공기물 관련 객체 필터링 및 손상 유형 추정
