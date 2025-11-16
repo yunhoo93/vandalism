@@ -198,11 +198,131 @@ def calculate_urgency(damage_type: str, description: str = "", image_analysis: d
     """긴급도 계산 (1-5, 5가 가장 긴급)"""
     return emergency_analyzer.analyze_emergency_level(damage_type, description, image_analysis)
 
-# 이미지 분석 함수
+# # 이미지 분석 함수
+# def analyze_image(image_bytes: bytes) -> dict:
+#     """이미지에서 객체 탐지 및 분석"""
+#     if not object_detector:
+#         # AI 모델이 없을 때 기본 분석
+#         try:
+#             image = Image.open(BytesIO(image_bytes))
+#             return {
+#                 "damage_type": "기타",
+#                 "confidence": 0.5,
+#                 "detected_objects": [],
+#                 "analysis": "이미지가 성공적으로 업로드되었습니다. 손상 유형을 선택해주세요.",
+#                 "ai_enabled": False
+#             }
+#         except Exception as e:
+#             return {"error": f"이미지 로드 실패: {str(e)}"}
+    
+#     try:
+#         # 이미지 로드
+#         image = Image.open(BytesIO(image_bytes))
+        
+#         # 객체 탐지
+#         results = object_detector(image)
+        
+#         # 탐지할 객체 개수 설정
+#         # 테스트용: 1개, 3개, 5개 등으로 변경해서 테스트 가능
+#         MAX_OBJECTS = 5
+        
+#         설정된 개수만큼 객체 표시 - 한글 번역 적용
+#         detected_objects = []
+#         for i, result in enumerate(results[:MAX_OBJECTS]):
+#             detected_objects.append({
+#                 'label': translate_object_label(result['label']),  # 한글 번역
+#                 'score': result['score'],
+#                 'box': result['box'],
+#                 'original_label': result['label']  # 원본 영어 라벨 보존
+#             })
+
+        
+#         # 공공기물 관련 객체 필터링 및 손상 유형 추정
+#         public_objects = [
+#             'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'person', 
+#             'traffic light', 'stop sign', 'fire hydrant', 'bench',
+#             'pole', 'lamp', 'street light', 'road', 'street', 'highway',
+#             'fence', 'barrier', 'guardrail', 'railing', 'sign', 'building',
+#             'street_light', 'illegal_parking', 'road_damage', 'road_damage', 'safety_fence'
+#         ]
+        
+#         # 객체에 따른 손상 유형 매핑
+#         object_to_damage = {
+#             'car': '불법주정차',
+#             'truck': '불법주정차', 
+#             'bus': '불법주정차',
+#             'motorcycle': '불법주정차',
+#             'bicycle': '불법주정차',
+#             'illegal_parking': '불법주정차',
+#             'person': '기타',
+#             'traffic light': '가로등',
+#             'stop sign': '기타',
+#             'fire hydrant': '기타',
+#             'bench': '기타',
+#             'pole': '가로등',
+#             'lamp': '가로등',
+#             'street light': '가로등',
+#             'street_light': '가로등',
+#             'road': '도로',
+#             'street': '도로',
+#             'highway': '도로',
+#             'road': '도로',
+#             'damage_road': '도로',
+#             'road_damage': '도로',
+#             'fence': '안전펜스',
+#             'safety_fence': '안전펜스',
+#             'barrier': '안전펜스',
+#             'guardrail': '안전펜스',
+#             'railing': '안전펜스',
+#             'sign': '기타',
+#             'building': '기타'
+#         }
+        
+#         # 탐지된 객체들로 손상 유형 결정
+#         if detected_objects:
+#             # 공공기물이 있는지 확인
+#             public_detected = []
+#             for obj in detected_objects:
+#                 if obj['original_label'].lower() in public_objects:
+#                     public_detected.append(obj)
+            
+#             if public_detected:
+#                 # 공공기물이 있으면 가장 높은 신뢰도의 공공기물 사용
+#                 best_object = max(public_detected, key=lambda x: x['score'])
+#                 damage_type = object_to_damage.get(best_object['original_label'].lower(), '기타')
+#                 confidence = best_object['score']
+#             else:
+#                 # 공공기물이 없으면 가장 높은 신뢰도의 객체 사용
+#                 best_object = detected_objects[0]
+#                 damage_type = "기타"
+#                 confidence = best_object['score']
+            
+#             # 분석 메시지 생성 (여러 객체인 경우)
+#             if len(detected_objects) == 1:
+#                 analysis = f"탐지된 객체: {detected_objects[0]['label']}"
+#             else:
+#                 object_names = [obj['label'] for obj in detected_objects]
+#                 analysis = f"탐지된 객체: {', '.join(object_names)}"
+#         else:
+#             damage_type = "기타"
+#             confidence = 0.0
+#             analysis = "탐지된 객체가 없습니다. 수동으로 손상 유형을 선택해주세요."
+        
+#         return {
+#             "damage_type": damage_type,
+#             "confidence": confidence,
+#             "detected_objects": detected_objects,
+#             "analysis": analysis,
+#             "ai_enabled": True
+#         }
+        
+#     except Exception as e:
+#         logger.error(f"이미지 분석 오류: {e}")
+#         return {"error": f"이미지 분석 실패: {str(e)}"}
+
 def analyze_image(image_bytes: bytes) -> dict:
     """이미지에서 객체 탐지 및 분석"""
     if not object_detector:
-        # AI 모델이 없을 때 기본 분석
         try:
             image = Image.open(BytesIO(image_bytes))
             return {
@@ -216,95 +336,31 @@ def analyze_image(image_bytes: bytes) -> dict:
             return {"error": f"이미지 로드 실패: {str(e)}"}
     
     try:
-        # 이미지 로드
         image = Image.open(BytesIO(image_bytes))
-        
-        # 객체 탐지
         results = object_detector(image)
-        
-        # 탐지할 객체 개수 설정
-        # 테스트용: 1개, 3개, 5개 등으로 변경해서 테스트 가능
         MAX_OBJECTS = 5
-        
-        설정된 개수만큼 객체 표시 - 한글 번역 적용
+
         detected_objects = []
-        
-        # for i, result in enumerate(results[:MAX_OBJECTS]):
-        #     detected_objects.append({
-        #         'label': translate_object_label(result['label']),  # 한글 번역
-        #         'score': result['score'],
-        #         'box': result['box'],
-        #         'original_label': result['label']  # 원본 영어 라벨 보존
-        #     })
-        
-        try:
-            # 1) ultralytics YOLO 형식 (results[0].boxes exists) 처리
-            if hasattr(results, "__len__") and len(results) > 0 and hasattr(results[0], "boxes"):
-                y_res = results[0]
-                # ultralytics box 객체 처리
-                # box.cls (tensor), box.conf, box.xyxy
-                for box in list(y_res.boxes)[:MAX_OBJECTS]:
-                    try:
-                        cls_idx = int(box.cls.cpu().numpy()[0]) if hasattr(box.cls, "cpu") else int(box.cls[0])
-                    except Exception:
-                        # fallback: try as plain python number
-                        cls_idx = int(box.cls[0]) if isinstance(box.cls, (list, tuple)) else int(box.cls)
-                    try:
-                        score = float(box.conf.cpu().numpy()[0]) if hasattr(box.conf, "cpu") else float(box.conf[0])
-                    except Exception:
-                        score = float(box.conf[0]) if isinstance(box.conf, (list, tuple)) else float(box.conf)
-                    # 모델에 따라 names 위치가 다름
-                    model_names = getattr(object_detector, "names", None)
-                    if not model_names and hasattr(results[0], "names"):
-                        model_names = results[0].names
-                    label = model_names[cls_idx] if model_names and cls_idx in model_names else str(cls_idx)
+        for i, result in enumerate(results[:MAX_OBJECTS]):
+            detected_objects.append({
+                'label': translate_object_label(result['label']),  # UI용 한글
+                'score': result['score'],
+                'box': result['box'],
+                'original_label': result['label'].strip().lower()  # 소문자 통일, 공백 제거
+            })
 
-                    detected_objects.append({
-                        "label": translate_object_label(label),
-                        "score": score,
-                        "box": getattr(box, "xyxy", None).tolist() if hasattr(box, "xyxy") else getattr(box, "data", None),
-                        "original_label": label
-                    })
-
-            # 2) transformers pipeline("object-detection") 형식: list of dicts
-            elif isinstance(results, list) and results and isinstance(results[0], dict) and 'label' in results[0]:
-                # results is a list of detections (for single image)
-                for det in results[:MAX_OBJECTS]:
-                    # det typically: {"label":"LABEL","score":0.9,"box":{...}}
-                    label = det.get('label', '')
-                    score = det.get('score', det.get('confidence', 0.0))
-                    box = det.get('box', det.get('bbox', None))
-                    detected_objects.append({
-                        "label": translate_object_label(label),
-                        "score": float(score),
-                        "box": box,
-                        "original_label": label
-                    })
-            else:
-                # 알 수 없는 형식: 전체 results 내용 로깅 후 fallback
-                logger.warning(f"Unknown object_detector results format: {type(results)} / sample: {str(results)[:400]}")
-        except Exception as parse_err:
-            logger.error(f"Object detection parsing error: {parse_err}")
-            # fallback: 빈 리스트로 처리 (이미지 업로드는 실패하지 않게)
-            detected_objects = []
-
-        # 디버그 로그: 탐지된 원본 라벨과 신뢰도 확인 (로컬/서버 로그로 확인)
-        logger.info("detected_objects: " + json.dumps([{"orig": obj["original_label"], "score": obj["score"]} for obj in detected_objects], ensure_ascii=False))
-
-        
-        # 공공기물 관련 객체 필터링 및 손상 유형 추정
+        # YOLO 학습 라벨 기준 공공기물 리스트
         public_objects = [
-            'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'person', 
+            'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'person',
             'traffic light', 'stop sign', 'fire hydrant', 'bench',
-            'pole', 'lamp', 'street light', 'road', 'street', 'highway',
+            'pole', 'lamp', 'street_light', 'road', 'street', 'highway',
             'fence', 'barrier', 'guardrail', 'railing', 'sign', 'building',
-            'street_light', 'illegal_parking', 'road_damage', 'road_damage', 'safety_fence'
+            'illegal_parking', 'road_damage', 'safety_fence'
         ]
-        
-        # 객체에 따른 손상 유형 매핑
+
         object_to_damage = {
             'car': '불법주정차',
-            'truck': '불법주정차', 
+            'truck': '불법주정차',
             'bus': '불법주정차',
             'motorcycle': '불법주정차',
             'bicycle': '불법주정차',
@@ -316,13 +372,10 @@ def analyze_image(image_bytes: bytes) -> dict:
             'bench': '기타',
             'pole': '가로등',
             'lamp': '가로등',
-            'street light': '가로등',
             'street_light': '가로등',
             'road': '도로',
             'street': '도로',
             'highway': '도로',
-            'road': '도로',
-            'damage_road': '도로',
             'road_damage': '도로',
             'fence': '안전펜스',
             'safety_fence': '안전펜스',
@@ -332,37 +385,28 @@ def analyze_image(image_bytes: bytes) -> dict:
             'sign': '기타',
             'building': '기타'
         }
-        
-        # 탐지된 객체들로 손상 유형 결정
+
         if detected_objects:
-            # 공공기물이 있는지 확인
-            public_detected = []
-            for obj in detected_objects:
-                if obj['original_label'].lower() in public_objects:
-                    public_detected.append(obj)
-            
+            public_detected = [obj for obj in detected_objects if obj['original_label'] in public_objects]
+
             if public_detected:
-                # 공공기물이 있으면 가장 높은 신뢰도의 공공기물 사용
                 best_object = max(public_detected, key=lambda x: x['score'])
-                damage_type = object_to_damage.get(best_object['original_label'].lower(), '기타')
+                damage_type = object_to_damage.get(best_object['original_label'], '기타')
                 confidence = best_object['score']
             else:
-                # 공공기물이 없으면 가장 높은 신뢰도의 객체 사용
                 best_object = detected_objects[0]
                 damage_type = "기타"
                 confidence = best_object['score']
-            
-            # 분석 메시지 생성 (여러 객체인 경우)
+
             if len(detected_objects) == 1:
                 analysis = f"탐지된 객체: {detected_objects[0]['label']}"
             else:
-                object_names = [obj['label'] for obj in detected_objects]
-                analysis = f"탐지된 객체: {', '.join(object_names)}"
+                analysis = "탐지된 객체: " + ", ".join(obj['label'] for obj in detected_objects)
         else:
             damage_type = "기타"
             confidence = 0.0
             analysis = "탐지된 객체가 없습니다. 수동으로 손상 유형을 선택해주세요."
-        
+
         return {
             "damage_type": damage_type,
             "confidence": confidence,
@@ -370,10 +414,11 @@ def analyze_image(image_bytes: bytes) -> dict:
             "analysis": analysis,
             "ai_enabled": True
         }
-        
+
     except Exception as e:
         logger.error(f"이미지 분석 오류: {e}")
         return {"error": f"이미지 분석 실패: {str(e)}"}
+
 
 # 위치 정보 추출 (EXIF 데이터에서)
 def extract_location(image_bytes: bytes) -> dict:
