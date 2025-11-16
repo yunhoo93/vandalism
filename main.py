@@ -322,8 +322,10 @@ def calculate_urgency(damage_type: str, description: str = "", image_analysis: d
 #         logger.error(f"이미지 분석 오류: {e}")
 #         return {"error": f"이미지 분석 실패: {str(e)}"}
 
+
+
 def analyze_image(image_bytes: bytes) -> dict:
-    """이미지에서 객체 탐지 및 분석"""
+    """이미지에서 객체 탐지 및 분석 (YOLO/DETR 호환, 라벨 통일)"""
     if not object_detector:
         try:
             image = Image.open(BytesIO(image_bytes))
@@ -336,37 +338,40 @@ def analyze_image(image_bytes: bytes) -> dict:
             }
         except Exception as e:
             return {"error": f"이미지 로드 실패: {str(e)}"}
-    
+
     try:
         image = Image.open(BytesIO(image_bytes))
         results = object_detector(image)
         MAX_OBJECTS = 5
 
-    for i, result in enumerate(results[:MAX_OBJECTS]):
-        # transformers pipeline 포맷
-        if isinstance(result, dict) and 'label' in result:
-            label_raw = result['label']
-            score = float(result.get('score', 0))
-            box = result.get('box', None)
-        # ultralytics YOLOv8 포맷
-        elif hasattr(result, "boxes"):
-            box_obj = result.boxes[i]
-            label_raw = getattr(box_obj, "cls", i)
-            score = getattr(box_obj, "conf", 0)
-            box = getattr(box_obj, "xyxy", None)
-        else:
-            continue
-    
-        # 라벨 표준화
-        original_label = str(label_raw).strip().lower().replace(" ", "_")
-        detected_objects.append({
-            "label": translate_object_label(original_label),
-            "score": score,
-            "box": box,
-            "original_label": original_label
-        })
+        detected_objects = []
+        for i, result in enumerate(results[:MAX_OBJECTS]):
+            # transformers pipeline 형식
+            if isinstance(result, dict) and 'label' in result:
+                label_raw = result['label']
+                score = float(result.get('score', 0))
+                box = result.get('box', None)
+            # ultralytics YOLOv8 형식
+            elif hasattr(result, "boxes"):
+                if i >= len(result.boxes):
+                    continue
+                box_obj = result.boxes[i]
+                label_raw = str(getattr(box_obj, "cls", i))
+                score = float(getattr(box_obj, "conf", 0))
+                box = getattr(box_obj, "xyxy", None)
+            else:
+                continue
 
-        # YOLO 학습 라벨 기준 공공기물 리스트
+            # 라벨 표준화
+            original_label = label_raw.strip().lower().replace(" ", "_")
+            detected_objects.append({
+                "label": translate_object_label(original_label),  # UI용 한글
+                "score": score,
+                "box": box,
+                "original_label": original_label
+            })
+
+        # YOLO 학습 라벨 기준 공공기물
         public_objects = [
             'car','truck','bus','motorcycle','bicycle','person',
             'traffic_light','stop_sign','fire_hydrant','bench',
@@ -403,26 +408,29 @@ def analyze_image(image_bytes: bytes) -> dict:
             'building': '기타'
         }
 
-        if detected_objects:
-            public_detected = [obj for obj in detected_objects if obj['original_label'] in public_objects]
+        # 탐지된 객체 중 공공기물 필터링
+        public_detected = [obj for obj in detected_objects if obj['original_label'] in public_objects]
 
-            if public_detected:
-                best_object = max(public_detected, key=lambda x: x['score'])
-                damage_type = object_to_damage.get(best_object['original_label'], '기타')
-                confidence = best_object['score']
-            else:
-                best_object = detected_objects[0]
-                damage_type = "기타"
-                confidence = best_object['score']
-
-            if len(detected_objects) == 1:
-                analysis = f"탐지된 객체: {detected_objects[0]['label']}"
-            else:
-                analysis = "탐지된 객체: " + ", ".join(obj['label'] for obj in detected_objects)
+        if public_detected:
+            best_object = max(public_detected, key=lambda x: x['score'])
+            damage_type = object_to_damage.get(best_object['original_label'], '기타')
+            confidence = best_object['score']
+        elif detected_objects:
+            best_object = detected_objects[0]
+            damage_type = "기타"
+            confidence = best_object['score']
         else:
             damage_type = "기타"
             confidence = 0.0
+
+        if detected_objects:
+            analysis = "탐지된 객체: " + ", ".join(obj['label'] for obj in detected_objects)
+        else:
             analysis = "탐지된 객체가 없습니다. 수동으로 손상 유형을 선택해주세요."
+
+        # 디버그 로그
+        logger.info(f"Detected labels: {[obj['original_label'] for obj in detected_objects]}")
+        logger.info(f"Matched public objects: {[obj['original_label'] for obj in public_detected]}")
 
         return {
             "damage_type": damage_type,
@@ -435,6 +443,8 @@ def analyze_image(image_bytes: bytes) -> dict:
     except Exception as e:
         logger.error(f"이미지 분석 오류: {e}")
         return {"error": f"이미지 분석 실패: {str(e)}"}
+
+
 
 
 # 위치 정보 추출 (EXIF 데이터에서)
